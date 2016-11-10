@@ -33,8 +33,7 @@ class BayesianClassifier {
 
     // Bernoulli Naive Bayesian helper hashmap
     private val _bernoulli_class_word_count = mutable.HashMap[(Int, Int), Int]()
-    private val _bernoulli_feature_likelihood = mutable.HashMap[(Int, Int), Double]()
-
+    private val _bernoulli_feature_likelihood = mutable.HashMap[(Int, Int), (Double, Double)]()
 
     def initialize(test_file: String, class_name: Array[Int]): Unit ={
     /*
@@ -103,8 +102,10 @@ class BayesianClassifier {
                 val K = 1
                 _bernoulli_class_word_count.keys.foreach(key =>
                     _bernoulli_feature_likelihood.put(key,
-                        (_bernoulli_class_word_count(key).toDouble + K) / (_class_word_sum(key._1) + K * _vocabulary.size))
+                        (log((_bernoulli_class_word_count(key).toDouble + K) / (_class_word_sum(key._1) + K * _vocabulary.size)),
+                                log(1 - (_bernoulli_class_word_count(key).toDouble + K) / (_class_word_sum(key._1) + K * _vocabulary.size))))
                 )
+
         }
     }
 
@@ -120,7 +121,7 @@ class BayesianClassifier {
             var likelihood = 0.0
             document.foreach(doc => {
                 if (_vocabulary.contains(doc._1))
-                    likelihood += doc._2 * log(_feature_likelihood((c, _vocabulary(doc._1))))
+                    likelihood += doc._2 * _feature_likelihood((c, _vocabulary(doc._1)))
             })
 
             likelihood += log(_prior(c))
@@ -132,16 +133,22 @@ class BayesianClassifier {
 
     def test_single_bernoulli(document: Set[String]) : Int = {
         _posterior.clear()
-        _class_name.foreach(c => {
+        // accelerate by parallel processing
+        _class_name.par.foreach(c => {
             var likelihood = 0.0
-            _vocabulary.foreach(v => {
-                if (document.contains(v._1)){
-                    likelihood += log(_bernoulli_feature_likelihood((c, _vocabulary(v._1))))
+//            val t1 = System.currentTimeMillis
+            _vocabulary.keys.foreach(v => {
+                val v_index = _vocabulary(v)
+
+                if (document.contains(v)){
+                    likelihood += _bernoulli_feature_likelihood((c, v_index))._1
                 }
                 else {
-                    likelihood += log(1 - _bernoulli_feature_likelihood((c, _vocabulary(v._1))))
+                    likelihood += _bernoulli_feature_likelihood((c, v_index))._2
                 }
             })
+//            val t2 = System.currentTimeMillis
+//            println("XXX "+ (t2 - t1))
             likelihood += log(_prior(c))
             _posterior.put(c, likelihood)
         })

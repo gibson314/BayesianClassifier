@@ -11,7 +11,7 @@ object MovieReviewClassification {
     def main(args: Array[String]): Unit = {
         val b = new BayesianClassifier()
         b.initialize(trainfiles(2), (0 until 40).toArray)
-        b.train(modeltype(0))
-        b.test(testfiles(2), modeltype(0))
+        b.train(modeltype(1))
+        b.test(testfiles(2), modeltype(1))
     }
 }
